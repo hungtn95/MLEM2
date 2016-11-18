@@ -1,0 +1,8 @@
+< a a a d >
+[ Temperature Headache Cough Flu ]
+40 yes * yes
+39 ? yes yes
+? yes yes yes
+? no * no
+36 - yes no
+38 yes no no
