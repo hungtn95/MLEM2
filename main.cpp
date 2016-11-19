@@ -162,17 +162,13 @@ map<string, set<int>>* findAttributeValuePairs(vector<string*> &decision_table, 
     return attribute_value_pairs;
 }
 
-set<int> findSpecialSymbolSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, vector<string> &case_list, int attribute_index, int case_index, int num_cases) {
+set<int> findSpecialSymbolSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, vector<string> &case_list, set<int> universal, int attribute_index, int case_index, int num_cases) {
     string attribute_value = decision_table[case_index][attribute_index];
-    set<int> universal;
-    for (int i = 0; i < num_cases; i++) {
-        universal.insert(i);
-    }
     if (isNormal(attribute_value)) {
         return attribute_value_pairs[attribute_index][attribute_value];
     } else if (attribute_value == DO_NOT_CARE || attribute_value == LOST) {
         return universal;
-    } 
+    }
     vector<set<int>> U;
     vector<string> most_frequent_attributes = findMostFrequent(case_list);
     for (auto const&attribute : most_frequent_attributes) {
@@ -186,7 +182,7 @@ set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set
     string concept;
     string attribute_value;
     set<int>* characteristic_set = new  set<int>[num_cases];
-    for (int i = 0; i < num_attributes; i++) {
+    for (int i = 0; i < num_attributes-1; i++) {
         for (int j = 0; j < num_cases; j++) {
             concept = decision_table[j][concept_index];
             attribute_value = decision_table[j][i];
@@ -204,15 +200,19 @@ set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set
             } 
         }
     }
+    set<int> universal;
+    for (int i = 0; i < num_cases; i++) {
+        universal.insert(i);
+    }
     for (int i = 0; i < num_cases; i++) {
         set<int> &ref = characteristic_set[i];
         string concept = decision_table[i][concept_index];
         vector<set<int>> set_list;
         vector<string> case_list = attribute_value_concept[0][concept];
-        set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, 0, i, num_cases));
+        set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, universal, 0, i, num_cases));
         for (int j = 1; j < num_attributes-1; j++) {
             case_list = attribute_value_concept[j][concept];
-            set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, j, i, num_cases));
+            set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, universal, j, i, num_cases));
         }
         ref = intersectList(set_list);
     }
@@ -342,7 +342,7 @@ int main()
     int num_attributes = 0;
     
     ifstream inputfile;
-    inputfile.open("test.txt");
+    inputfile.open("keller-train-ca.txt");
 
     getline(inputfile, ignore);
     getline(inputfile, rawList);
@@ -372,22 +372,22 @@ int main()
     }
     inputfile.close();
 
-    for (string k : attributes) {
-        cout << k << " ";
-    }
-    cout << '\n';
-    for (string* single_case : decision_table) {
-        for (int i = 0; i < num_attributes; i++) {
-            cout << single_case[i] << " ";
-        }
-        cout << '\n';
-    }
+    // for (string k : attributes) {
+    //     cout << k << " ";
+    // }
+    // cout << '\n';
+    // for (string* single_case : decision_table) {
+    //     for (int i = 0; i < num_attributes; i++) {
+    //         cout << single_case[i] << " ";
+    //     }
+    //     cout << '\n';
+    // }
 
     string decision = attributes[concept_index];
     map<string, vector<string>>* attribute_value_concept = findAttributeValueConcept(decision_table, concepts.size(), num_attributes, num_cases);
     map<string, set<int>>* attribute_value_pairs = findAttributeValuePairs(decision_table, num_attributes, num_cases);
-    set<int>* characteristic_set = findCharacteristicSet(decision_table, attribute_value_pairs, attribute_value_concept, num_attributes, num_cases);
     map<string, set<int>> concept_block = findConceptBlock(decision_table, num_attributes, num_cases);
+    set<int>* characteristic_set = findCharacteristicSet(decision_table, attribute_value_pairs, attribute_value_concept, num_attributes, num_cases);
 
     vector<AttributeValue> A_V;
     for (int i = 0; i < num_attributes - 1; i++) { 
