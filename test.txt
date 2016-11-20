@@ -1,8 +1,9 @@
 < a a a d >
-[ Temperature Headache Cough Flu ]
-40 yes * yes
-39 ? yes yes
-? yes yes yes
-? no * no
-36 - yes no
-38 yes no no
+[ A B C D ]
+0.8 0.3 7.2 very-small
+0.8 1.1 7.2 small
+0.8 1.1 10.2 medium
+1.2 0.3 10.2 medium
+1.2 2.3 10.2 medium
+2.0 2.3 10.2 high
+2.0 2.3 15.2 very-high

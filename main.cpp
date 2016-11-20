@@ -181,7 +181,7 @@ set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set
     int concept_index = num_attributes - 1;
     string concept;
     string attribute_value;
-    set<int>* characteristic_set = new  set<int>[num_cases];
+    set<int>* characteristic_set = new set<int>[num_cases];
     for (int i = 0; i < num_attributes-1; i++) {
         for (int j = 0; j < num_cases; j++) {
             concept = decision_table[j][concept_index];
@@ -283,7 +283,7 @@ vector<set<int>> transformList(vector<AttributeValue> A_V, set<set<int>> T) {
 set<set<int>> LEM2(vector<AttributeValue> A_V, set<int> B) {
     set<int> G = B;
     set<set<int>> local_covering;
-    while (G.size() != 0) {
+    while (!G.empty()) {
         set<int> T;
         set<int> T_G;
         for (int i = 0; i < A_V.size(); i++) {
@@ -310,9 +310,11 @@ set<set<int>> LEM2(vector<AttributeValue> A_V, set<int> B) {
             T_G = Difference(T_G, T);
         }
         if (T.size() > 1) {
-            for (int t : T) {
-                if (Difference(intersectList(transform(A_V, removeCondition(T, t))), B).empty()) {
-                    T = removeCondition(T, t);
+            set<int> original_rule_set = T;
+            for (int t : original_rule_set) {
+                set<int> new_rule_set = removeCondition(T, t);
+                if (Difference(intersectList(transform(A_V, new_rule_set)), B).empty()) {
+                    T = new_rule_set;
                 }
             }
         }
@@ -342,7 +344,7 @@ int main()
     int num_attributes = 0;
     
     ifstream inputfile;
-    inputfile.open("keller-train-ca.txt");
+    inputfile.open("test.txt");
 
     getline(inputfile, ignore);
     getline(inputfile, rawList);
@@ -402,25 +404,25 @@ int main()
 
     set<int> B;
     set<set<int>> local_covering;
-    cout << "Possible rules: " << '\n';
-    for (string concept : concepts) {
-        B = findConceptApproximationUpper(characteristic_set, concept_block, concept);
-        local_covering = LEM2(A_V, B);
-        for (set<int> T : local_covering) {
-            string rule = "";
-            bool check = true;
-            for (int t : T) {
-                if (check) {
-                    check = false;
-                } else {
-                    rule += " & ";
-                }
-                rule += "(" + attributes[A_V[t].attribute] + ", " + A_V[t].value + ")";
-            }
-            rule += " -> (" + decision + ", " + concept + ")";
-            cout << rule << '\n';
-        }
-    }
+    // cout << "Possible rules: " << '\n';
+    // for (string concept : concepts) {
+    //     B = findConceptApproximationUpper(characteristic_set, concept_block, concept);
+    //     local_covering = LEM2(A_V, B);
+    //     for (set<int> T : local_covering) {
+    //         string rule = "";
+    //         bool check = true;
+    //         for (int t : T) {
+    //             if (check) {
+    //                 check = false;
+    //             } else {
+    //                 rule += " & ";
+    //             }
+    //             rule += "(" + attributes[A_V[t].attribute] + ", " + A_V[t].value + ")";
+    //         }
+    //         rule += " -> (" + decision + ", " + concept + ")";
+    //         cout << rule << '\n';
+    //     }
+    // }
     cout << "Certain rules: " << '\n';
     for (string concept : concepts) {
         B = findConceptApproximationLower(characteristic_set, concept_block, concept);
