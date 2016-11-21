@@ -10,7 +10,6 @@
 #include <set>
 #include <map>
 #include <vector>
-#include <stack>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -239,7 +238,7 @@ set<int> findConceptApproximationUpper(set<int>* &characteristic_set, map<string
     return unionList<int>(upper_concept_approximation);
 }
 
-int compare(vector<AttributeValue> A_V, set<int> G, int t1, int t2) {
+int compare(vector<AttributeValue> &A_V, set<int> G, int t1, int t2) {
     int result = Intersect(A_V[t1].block, G).size() - Intersect(A_V[t2].block, G).size();
     if (result == 0) {
         result = A_V[t2].block.size() - A_V[t1].block.size();
@@ -250,21 +249,21 @@ int compare(vector<AttributeValue> A_V, set<int> G, int t1, int t2) {
     return result;
 }
 
-set<int> removeCondition(set<int> T, int t) {
+set<int> removeCondition(set<int> &T, int t) {
     set<int> copy = T;
     set<int>::iterator it = copy.find(t);
     copy.erase(t);
     return copy;
 }
 
-set<set<int>> removeRule(set<set<int>> local_covering, set<int> T) {
+set<set<int>> removeRule(set<set<int>> &local_covering, set<int> &T) {
     set<set<int>> copy = local_covering;
     set<set<int>>::iterator it = copy.find(T);
     copy.erase(T);
     return copy;
 }
 
-vector<set<int>> transform(vector<AttributeValue> A_V, set<int> T) {
+vector<set<int>> transform(vector<AttributeValue> &A_V, set<int> &T) {
     vector<set<int>> list;
     for (int t : T) {
         list.push_back(A_V[t].block);
@@ -272,7 +271,7 @@ vector<set<int>> transform(vector<AttributeValue> A_V, set<int> T) {
     return list;
 }
 
-vector<set<int>> transformList(vector<AttributeValue> A_V, set<set<int>> T) {
+vector<set<int>> transformList(vector<AttributeValue> &A_V, set<set<int>> T) {
     vector<set<int>> list;
     for (set<int> t : T) {
         list.push_back(intersectList(transform(A_V, t)));
@@ -280,7 +279,7 @@ vector<set<int>> transformList(vector<AttributeValue> A_V, set<set<int>> T) {
     return list;
 }
 
-set<set<int>> LEM2(vector<AttributeValue> A_V, set<int> B) {
+set<set<int>> LEM2(vector<AttributeValue> &A_V, set<int> B) {
     set<int> G = B;
     set<set<int>> local_covering;
     while (!G.empty()) {
@@ -331,35 +330,21 @@ set<set<int>> LEM2(vector<AttributeValue> A_V, set<int> B) {
     return local_covering;
 }
 
-int main()
-{
+void parseInput(ifstream &inputfile, vector<string*> &decision_table, vector<string> &attributes, set<string> &concepts, int &num_cases, int &num_attributes) {
     string ignore;
     string input;
     string rawList;
-    vector<string> attributes;
-    set<string> concepts;
-    vector<string*> decision_table;
-    int concept_index;
-    int num_cases = 0;
-    int num_attributes = 0;
-    
-    ifstream inputfile;
-    inputfile.open("test.txt");
-
     getline(inputfile, ignore);
     getline(inputfile, rawList);
     size_t first = rawList.find("[");
     size_t last = rawList.find("]", first);
     string processedList = rawList.substr(first+1, last-first-1);
     istringstream iss(processedList);
-
     while (iss >> input)
     {
         attributes.push_back(input);
         num_attributes++;
     }
-    concept_index = num_attributes - 1;
-    
     while (!inputfile.eof()) 
     {
         getline(inputfile, input);
@@ -369,28 +354,21 @@ int main()
             iss_case >> single_case[i]; 
         }
         decision_table.push_back(single_case);
-        concepts.insert(single_case[concept_index]);
+        concepts.insert(single_case[num_attributes - 1]);
         num_cases++;
     }
     inputfile.close();
+}
 
-    // for (string k : attributes) {
-    //     cout << k << " ";
-    // }
-    // cout << '\n';
-    // for (string* single_case : decision_table) {
-    //     for (int i = 0; i < num_attributes; i++) {
-    //         cout << single_case[i] << " ";
-    //     }
-    //     cout << '\n';
-    // }
-
+void run(vector<string*> &decision_table, vector<string> &attributes, set<string> &concepts, int &num_cases, int &num_attributes) {
+    int concept_index = num_attributes - 1;
     string decision = attributes[concept_index];
     map<string, vector<string>>* attribute_value_concept = findAttributeValueConcept(decision_table, concepts.size(), num_attributes, num_cases);
+    cout << "Finding attribute value pairs!" << '\n';
     map<string, set<int>>* attribute_value_pairs = findAttributeValuePairs(decision_table, num_attributes, num_cases);
     map<string, set<int>> concept_block = findConceptBlock(decision_table, num_attributes, num_cases);
+    cout << "Finding characteristic set!" << '\n';
     set<int>* characteristic_set = findCharacteristicSet(decision_table, attribute_value_pairs, attribute_value_concept, num_attributes, num_cases);
-
     vector<AttributeValue> A_V;
     for (int i = 0; i < num_attributes - 1; i++) { 
         for (auto &attribute_value : attribute_value_pairs[i]) {
@@ -404,25 +382,26 @@ int main()
 
     set<int> B;
     set<set<int>> local_covering;
-    // cout << "Possible rules: " << '\n';
-    // for (string concept : concepts) {
-    //     B = findConceptApproximationUpper(characteristic_set, concept_block, concept);
-    //     local_covering = LEM2(A_V, B);
-    //     for (set<int> T : local_covering) {
-    //         string rule = "";
-    //         bool check = true;
-    //         for (int t : T) {
-    //             if (check) {
-    //                 check = false;
-    //             } else {
-    //                 rule += " & ";
-    //             }
-    //             rule += "(" + attributes[A_V[t].attribute] + ", " + A_V[t].value + ")";
-    //         }
-    //         rule += " -> (" + decision + ", " + concept + ")";
-    //         cout << rule << '\n';
-    //     }
-    // }
+    cout << "Possible rules: " << '\n';
+    for (string concept : concepts) {
+        B = findConceptApproximationUpper(characteristic_set, concept_block, concept);
+        local_covering = LEM2(A_V, B);
+        for (set<int> T : local_covering) {
+            string rule = "";
+            bool check = true;
+            for (int t : T) {
+                if (check) {
+                    check = false;
+                } else {
+                    rule += " & ";
+                }
+                rule += "(" + attributes[A_V[t].attribute] + ", " + A_V[t].value + ")";
+            }
+            rule += " -> (" + decision + ", " + concept + ")";
+            cout << rule << '\n';
+        }
+    }
+
     cout << "Certain rules: " << '\n';
     for (string concept : concepts) {
         B = findConceptApproximationLower(characteristic_set, concept_block, concept);
@@ -442,5 +421,42 @@ int main()
             cout << rule << '\n';
         }
     }
+}
+
+void convertNumerical(vector<string*> &decision_table, int num_cases, int num_attributes) {
+    for (int i = 0; i < num_attributes - 1; i++) {
+        
+    }
+}
+
+int main() {
+    vector<string> attributes;
+    set<string> concepts;
+    vector<string*> decision_table;
+    int num_cases = 0;
+    int num_attributes = 0;
+
+    string option;
+    bool valid = false;
+    while (option != "n" && !valid) {
+        cout << "Do you want to start the program? (y/n): ";
+        cin >> option;
+        if (option == "y") {
+            string file;
+            cout << "Enter the input file: ";
+            cin >> file;
+            ifstream inputfile;
+            inputfile.open(file);
+            if (inputfile.is_open()) {
+                parseInput(inputfile, decision_table, attributes, concepts, num_cases, num_attributes);
+                cout << '\n';
+                run(decision_table, attributes, concepts, num_cases, num_attributes);
+                valid = true;
+            } else {
+                cout << "Invalid file!" << '\n';
+            }
+        }
+    }
+    cout << "Exiting!" << '\n';
     return 0;
 }
