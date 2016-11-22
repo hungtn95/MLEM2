@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <fstream>
+#include <cmath>
 
 using namespace std;
 
@@ -28,13 +29,34 @@ typedef struct AttributeValue {
     set<int> block;
 } AttributeValue;
 
+typedef struct Interval {
+    double lower;
+    double upper;
+    string toString() {
+        stringstream ss;
+        ss << lower << ".." << upper;
+        return ss.str();
+    }
+} Interval;
+
+string doubleToString(double d) {
+    stringstream ss;
+    ss << d;
+    return ss.str();
+}
+
+double round(double y) {
+    return floor(y * 10.0) / 10.0;
+}
+
 bool isNormal(string symbol) {
     return (symbol != DO_NOT_CARE) && (symbol != LOST) && (symbol != ATTRIBUTE_CONCEPT);
 }
 
-void printSet(set<int> s) {
+template <typename T>
+void printSet(set<T> s) {
     cout << "[ ";
-    for (int i : s) {
+    for (T i : s) {
         cout << i << " ";
     }
     cout << "]";
@@ -81,43 +103,6 @@ set<T> unionList(vector<set<T>> list) {
     return union_set;
 }
 
-map<string, set<int>> findConceptBlock(vector<string*> &decision_table, int num_attributes, int num_cases) {
-    int concept_index = num_attributes - 1;
-    map<string, set<int>> concept_block;
-    for (int i = 0; i < num_cases; i++) {
-        string concept = decision_table[i][concept_index];
-        if (concept_block.find(concept) == concept_block.end()) {
-            set<int> v;
-            v.insert(i);
-            concept_block.insert(pair<string,set<int>>(concept,v));
-        } else {
-            concept_block[concept].insert(i);
-        }
-    }
-    return concept_block;
-}
-
-map<string, vector<string>>* findAttributeValueConcept(vector<string*> &decision_table, int num_concepts, int num_attributes, int num_cases) {
-    int concept_index = num_attributes - 1;
-    map<string, vector<string>>* attribute_value_concept = new  map<string, vector<string>>[num_attributes];
-    for (int i = 0; i < num_attributes; i++) {
-        for (int j = 0; j < num_cases; j++) {
-            if (isNormal(decision_table[j][i])) {
-                string concept = decision_table[j][concept_index];
-                string attribute_value = decision_table[j][i];
-                if (attribute_value_concept[i].find(concept) == attribute_value_concept[i].end()) {
-                    vector<string> v;
-                    v.push_back(attribute_value);
-                    attribute_value_concept[i].insert(pair<string,vector<string>>(concept,v));
-                } else {
-                    attribute_value_concept[i][concept].push_back(attribute_value);
-                }
-            }
-        }
-    }
-    return attribute_value_concept;
-}
-
 vector<string> findMostFrequent(vector<string> &list) {
     vector<string> most_frequent;
     map<string,int> frequencies;
@@ -142,18 +127,116 @@ vector<string> findMostFrequent(vector<string> &list) {
     return most_frequent;
 }
 
-map<string, set<int>>* findAttributeValuePairs(vector<string*> &decision_table, int num_attributes, int num_cases) {
-    map<string, set<int>>* attribute_value_pairs = new  map<string, set<int>>[num_attributes];
-    for (int i = 0; i < num_attributes; i++) {
+bool isNumerical(const char* str) {
+    char* endptr = 0;
+    strtod(str, &endptr);
+
+    if(*endptr != '\0' || endptr == str)
+        return false;
+    return true;
+}
+
+bool isNumericalAttribute(vector<string*> &decision_table, int attribute_index, int num_cases) {
+    for (int i = 0; i < num_cases; i++) {
+        string value = decision_table[i][attribute_index];
+        if (isNormal(value)) {
+            return isNumerical(value.c_str());
+        }
+    }
+    return false;
+}
+
+void insertAttributeValue(map<string, set<int>> &attribute, string value, int j) {
+    if (attribute.find(value) == attribute.end()) {
+        set<int> s;
+        s.insert(j);
+        attribute.insert(pair<string,set<int>>(value,s));
+    } else {
+        attribute[value].insert(j);
+    }
+} 
+
+map<string, set<int>> findConceptBlock(vector<string*> &decision_table, int num_attributes, int num_cases) {
+    int concept_index = num_attributes - 1;
+    map<string, set<int>> concept_block;
+    for (int i = 0; i < num_cases; i++) {
+        string concept = decision_table[i][concept_index];
+        if (concept_block.find(concept) == concept_block.end()) {
+            set<int> v;
+            v.insert(i);
+            concept_block.insert(pair<string,set<int>>(concept,v));
+        } else {
+            concept_block[concept].insert(i);
+        }
+    }
+    return concept_block;
+}
+
+map<string, vector<string>>* findAttributeValueConcept(vector<string*> &decision_table, int num_concepts, int num_attributes, int num_cases) {
+    int concept_index = num_attributes-1;
+    map<string, vector<string>>* attribute_value_concept = new  map<string, vector<string>>[num_attributes-1];
+    for (int i = 0; i < num_attributes-1; i++) {
         for (int j = 0; j < num_cases; j++) {
             string attribute_value = decision_table[j][i];
+            string concept = decision_table[j][concept_index];
             if (isNormal(attribute_value)) {
-                if (attribute_value_pairs[i].find(attribute_value) == attribute_value_pairs[i].end()) {
-                    set<int> s;
-                    s.insert(j);
-                    attribute_value_pairs[i].insert(pair<string,set<int>>(attribute_value,s));
+                if (attribute_value_concept[i].find(concept) == attribute_value_concept[i].end()) {
+                    vector<string> v;
+                    v.push_back(attribute_value);
+                    attribute_value_concept[i].insert(pair<string,vector<string>>(concept,v));
                 } else {
-                    attribute_value_pairs[i][attribute_value].insert(j);
+                    attribute_value_concept[i][concept].push_back(attribute_value);
+                }
+            }
+        }
+    }
+    return attribute_value_concept;
+}
+
+map<string, set<int>>* findAttributeValuePairs(vector<string*> &decision_table, map<int,map<double,vector<string>>> &interval_map, int num_attributes, int num_cases) {
+    map<string, set<int>>* attribute_value_pairs = new  map<string, set<int>>[num_attributes];
+    for (int i = 0; i < num_attributes-1; i++) {
+        if (isNumericalAttribute(decision_table, i, num_cases)) {
+            set<double> a;
+            for (int j = 0; j < num_cases; j++) {
+                a.insert(stod(decision_table[j][i].c_str()));
+            }  
+            vector<double> b(a.begin(), a.end()); 
+            vector<double> cut_points;
+            for (int j = 0; j < b.size() - 1; j++) {
+                cut_points.push_back((b[j]+b[j+1])/2);
+            }  
+            vector<Interval> primary_intervals;
+            for (double cut_point : cut_points) {
+                Interval i1;
+                i1.lower = b[0];
+                i1.upper = cut_point;
+                primary_intervals.push_back(i1);
+                Interval i2;
+                i2.lower = cut_point;
+                i2.upper = b[b.size()-1];
+                primary_intervals.push_back(i2);
+            }
+            for (double value : a) {
+                for (Interval interval : primary_intervals) {
+                    if (value >= interval.lower && value <= interval.upper) {
+                        interval_map[i][value].push_back(interval.toString());
+                    }        
+                }
+            }
+            for (int j = 0; j < num_cases; j++) {
+                double value = stod(decision_table[j][i].c_str());
+                for (Interval interval : primary_intervals) {
+                    if (value >= interval.lower && value <= interval.upper) {
+                        insertAttributeValue(attribute_value_pairs[i], interval.toString(), j);
+                    }
+                }
+            }  
+        } else {
+            for (int j = 0; j < num_cases; j++) {
+                string attribute_value = decision_table[j][i];
+                if (isNormal(attribute_value)) {
+                    insertAttributeValue(attribute_value_pairs[i], attribute_value, j);
                 }
             }
         }
@@ -161,26 +244,34 @@ map<string, set<int>>* findAttributeValuePairs(vector<string*> &decision_table, 
     return attribute_value_pairs;
 }
 
-set<int> findSpecialSymbolSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, vector<string> &case_list, set<int> universal, int attribute_index, int case_index, int num_cases) {
+set<int> findSpecialSymbolSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, map<int,map<double,vector<string>>> &interval_map, vector<string> &case_list, set<int> universal, int attribute_index, int case_index, int num_cases) {
     string attribute_value = decision_table[case_index][attribute_index];
-    if (isNormal(attribute_value)) {
-        return attribute_value_pairs[attribute_index][attribute_value];
+    map<string, set<int>> map = attribute_value_pairs[attribute_index];
+    vector<set<int>> U;
+    if (isNumerical(attribute_value.c_str())) {
+        vector<string> intervals = interval_map[attribute_index][stod(attribute_value.c_str())];
+        for (string interval : intervals) {
+            U.push_back(map[interval]);
+        }
+        return intersectList(U);
+    } else if (isNormal(attribute_value)) {
+        return map[attribute_value];
     } else if (attribute_value == DO_NOT_CARE || attribute_value == LOST) {
         return universal;
     }
-    vector<set<int>> U;
     vector<string> most_frequent_attributes = findMostFrequent(case_list);
     for (auto const&attribute : most_frequent_attributes) {
-        U.push_back(attribute_value_pairs[attribute_index][attribute]);
+        U.push_back(map[attribute]);
     }
     return unionList<int>(U);
 }
 
-set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, map<string, vector<string>>* &attribute_value_concept, int num_attributes, int num_cases) {
-    int concept_index = num_attributes - 1;
+set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set<int>>* &attribute_value_pairs, map<int, map<double, vector<string>>> &interval_map, int num_concepts, int num_attributes, int num_cases) {
+    int concept_index = num_attributes-1;
     string concept;
     string attribute_value;
     set<int>* characteristic_set = new set<int>[num_cases];
+    map<string, vector<string>>* attribute_value_concept = findAttributeValueConcept(decision_table, num_concepts, num_attributes, num_cases);
     for (int i = 0; i < num_attributes-1; i++) {
         for (int j = 0; j < num_cases; j++) {
             concept = decision_table[j][concept_index];
@@ -204,14 +295,17 @@ set<int>* findCharacteristicSet(vector<string*> &decision_table, map<string, set
         universal.insert(i);
     }
     for (int i = 0; i < num_cases; i++) {
+        cout << "Case: " << i << '\n';
         set<int> &ref = characteristic_set[i];
         string concept = decision_table[i][concept_index];
         vector<set<int>> set_list;
         vector<string> case_list = attribute_value_concept[0][concept];
-        set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, universal, 0, i, num_cases));
+        set<int> a = findSpecialSymbolSet(decision_table, attribute_value_pairs, interval_map, case_list, universal, 0, i, num_cases);
+        set_list.push_back(a);
         for (int j = 1; j < num_attributes-1; j++) {
             case_list = attribute_value_concept[j][concept];
-            set_list.push_back(findSpecialSymbolSet(decision_table, attribute_value_pairs, case_list, universal, j, i, num_cases));
+            a = findSpecialSymbolSet(decision_table, attribute_value_pairs, interval_map, case_list, universal, j, i, num_cases);
+            set_list.push_back(a);
         }
         ref = intersectList(set_list);
     }
@@ -282,7 +376,11 @@ vector<set<int>> transformList(vector<AttributeValue> &A_V, set<set<int>> T) {
 set<set<int>> LEM2(vector<AttributeValue> &A_V, set<int> B) {
     set<int> G = B;
     set<set<int>> local_covering;
+    int count = 0;
     while (!G.empty()) {
+        cout << "Iteration: " << count << '\n';
+        count++;
+        int count2 = 0;
         set<int> T;
         set<int> T_G;
         for (int i = 0; i < A_V.size(); i++) {
@@ -291,6 +389,8 @@ set<set<int>> LEM2(vector<AttributeValue> &A_V, set<int> B) {
             }
         }
         while (T.empty() || !Difference(intersectList(transform(A_V, T)), B).empty()) {
+            cout << "Sub Iteration: " << count2 << '\n';
+            count2++;
             int max = *T_G.begin();
             for (int i : T_G) {
                 if (compare(A_V, G, i, max) > 0) {
@@ -363,14 +463,14 @@ void parseInput(ifstream &inputfile, vector<string*> &decision_table, vector<str
 void run(vector<string*> &decision_table, vector<string> &attributes, set<string> &concepts, int &num_cases, int &num_attributes) {
     int concept_index = num_attributes - 1;
     string decision = attributes[concept_index];
-    map<string, vector<string>>* attribute_value_concept = findAttributeValueConcept(decision_table, concepts.size(), num_attributes, num_cases);
     cout << "Finding attribute value pairs!" << '\n';
-    map<string, set<int>>* attribute_value_pairs = findAttributeValuePairs(decision_table, num_attributes, num_cases);
+    map<int,map<double,vector<string>>> interval_map;
+    map<string, set<int>>* attribute_value_pairs = findAttributeValuePairs(decision_table, interval_map, num_attributes, num_cases);
     map<string, set<int>> concept_block = findConceptBlock(decision_table, num_attributes, num_cases);
     cout << "Finding characteristic set!" << '\n';
-    set<int>* characteristic_set = findCharacteristicSet(decision_table, attribute_value_pairs, attribute_value_concept, num_attributes, num_cases);
+    set<int>* characteristic_set = findCharacteristicSet(decision_table, attribute_value_pairs, interval_map, concepts.size(), num_attributes, num_cases);
     vector<AttributeValue> A_V;
-    for (int i = 0; i < num_attributes - 1; i++) { 
+    for (int i = 0; i < num_attributes-1; i++) { 
         for (auto &attribute_value : attribute_value_pairs[i]) {
             AttributeValue t;
             t.attribute = i;
@@ -423,12 +523,6 @@ void run(vector<string*> &decision_table, vector<string> &attributes, set<string
     }
 }
 
-void convertNumerical(vector<string*> &decision_table, int num_cases, int num_attributes) {
-    for (int i = 0; i < num_attributes - 1; i++) {
-        
-    }
-}
-
 int main() {
     vector<string> attributes;
     set<string> concepts;
@@ -449,7 +543,7 @@ int main() {
             inputfile.open(file);
             if (inputfile.is_open()) {
                 parseInput(inputfile, decision_table, attributes, concepts, num_cases, num_attributes);
-                cout << '\n';
+                // cout << '\n';
                 run(decision_table, attributes, concepts, num_cases, num_attributes);
                 valid = true;
             } else {
